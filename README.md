@@ -1,4 +1,4 @@
-# Анализ электрической сети Великобритании
+# Анализ электрической сети Великобритании с помощью графов
 
 [ПРОЕКТ](https://colab.research.google.com/drive/1NWfHJOzshvCLuPm2MDWf2O8AXp8plVQ0?usp=sharing)
 
