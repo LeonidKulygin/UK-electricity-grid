@@ -1,5 +1,10 @@
 # Анализ электрической сети Великобритании
 
+[ПРОЕКТ](https://colab.research.google.com/drive/1NWfHJOzshvCLuPm2MDWf2O8AXp8plVQ0?usp=sharing)
+
+
+https://colab.research.google.com/drive/1NWfHJOzshvCLuPm2MDWf2O8AXp8plVQ0?usp=sharing
+
 ## Описание проекта
 Этот проект посвящен анализу данных об электрической сети Великобритании, включая исследование распределения напряжения и кластеризацию данных для выявления закономерностей. Проект реализован в Jupyter Notebook с использованием Python и библиотек для анализа данных и визуализации.
 
