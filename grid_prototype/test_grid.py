@@ -49,6 +49,17 @@ class GridChecks(unittest.TestCase):
         self.assertEqual(other.number_of_edges(),self.full.number_of_edges())
         self.assertEqual({d['id'] for *_,d in other.edges(data=True)},{d['id'] for *_,d in self.full.edges(data=True)})
 
+    def test_physical_input_flags_and_map_accounting(self):
+        summary = json.loads((ROOT/'exports/summary.json').read_text('utf-8'))
+        lines = [data for *_, data in self.full.edges(data=True) if data['edge_type'] == 'ac_line']
+        self.assertEqual(len(lines), 788)
+        self.assertEqual(sum(data['zero_impedance'] for data in lines), 51)
+        self.assertEqual(sum(data['terminal_voltage_mismatch'] for data in lines), 11)
+        self.assertEqual(nx.number_of_selfloops(self.full), 0)
+        for edge_type, counts in summary['map_edges'].items():
+            self.assertEqual(sum(counts.values()), summary['edge_types'][edge_type])
+        self.assertEqual(summary['map_edges']['hvdc_interconnector']['polylines'], 5)
+
     def test_false_positive_station_names_are_rejected(self):
         audit=pd.read_csv(ROOT/'data/normalized/plant_connections_audit.csv')
         for name in ['Coventry','Immingham','Spalding','Sutton Bridge']:

@@ -29,6 +29,11 @@ def clean(s): return str(s).strip() if value(s) is not None else ''
 def key(s): return re.sub(r'[^A-Z0-9]', '', clean(s).upper())
 def token(s): return hashlib.sha256(s.encode('utf-8')).hexdigest()[:16]
 
+
+def tooltip_text(text):
+    # Folium renders tooltip HTML inside a JavaScript template literal.
+    return html.escape(text).replace('`', '&#96;').replace('$', '&#36;').replace('\\', '&#92;')
+
 def technology_groups(text):
     text=clean(text).lower(); result=set()
     for group,words in {
@@ -75,6 +80,7 @@ def main():
     paths={'cardiff':args.cardiff or raw/'cardiff.xlsx','dukes':args.dukes or raw/'dukes.xlsx',
            'repd':args.repd or raw/'repd.csv','transmission-entry-capacity-tec-register':args.tec or raw/'neso_tec.csv',
            'interconnector-register':args.interconnector_register or raw/'neso_interconnectors.csv'}
+    explicit_inputs = {args.cardiff, args.dukes, args.repd, args.tec, args.interconnector_register} - {None}
     for sid,path in paths.items():
         if path.exists():
             digest=hashlib.sha256(path.read_bytes()).hexdigest()
@@ -86,6 +92,8 @@ def main():
                 manifest[sid] = dict(source_page=publisher, sha256=digest,
                     local_file=path.name, note='Local input; edition and licence not verified')
         else:
+            if path in explicit_inputs:
+                parser.error(f'File not found: {path}')
             manifest.setdefault(sid, {})['used_in_build'] = False
     if not paths['cardiff'].exists(): raise FileNotFoundError('Place Cardiff Data.xlsx in data/raw/cardiff.xlsx or pass --cardiff PATH')
     graph=nx.MultiGraph(name='GB transmission model and verified interconnector corridors', schema_version='1.0')
@@ -130,6 +138,17 @@ def main():
             **source_attrs('cardiff',manifest,int(i)+3,'Line'))
         if attrs['length_km']==0:
             attrs['length_km']=None; issue('zero_model_length',id=eid)
+        attrs['zero_impedance'] = attrs['r_ohm'] == 0 and attrs['x_ohm'] == 0
+        if attrs['zero_impedance']:
+            issue('zero_line_impedance', id=eid)
+        stated_voltage = attrs['voltage_kv']
+        bus_voltages = [terminals[end]['voltage_kv'] for end in (a, b)]
+        attrs['terminal_voltage_mismatch'] = stated_voltage is not None and any(
+            voltage is not None and voltage != stated_voltage for voltage in bus_voltages
+        )
+        if attrs['terminal_voltage_mismatch']:
+            issue('line_terminal_voltage_mismatch', id=eid, line_kv=stated_voltage,
+                  from_name=a, to_name=b, terminal_kv=bus_voltages)
         graph.add_edge(terminals[a]['id'],terminals[b]['id'],key=eid,**attrs)
     # No terminal columns are supplied for transformers. Resolve only when a named
     # terminal anchors the site and each winding voltage has exactly one bus there.
@@ -216,7 +235,9 @@ def main():
             site=resolve_site(clean(r['Connection Site']))
             audit=dict(project_name=clean(r['Project Name']),connection_site=clean(r['Connection Site']),
                 project_number=clean(r['Project Number']),source_row=int(i)+2,plant_candidates=[p['id'] for p in preferred],
-                resolved_terminal_id=site['id'] if site else None)
+                resolved_terminal_id=site['id'] if site else None, neso_status=clean(r['Project Status']))
+            if audit['neso_status'].casefold() != 'built':
+                audit['resolution']='rejected_register_status'; connection_audit.append(audit); continue
             if len(preferred)!=1 or site is None:
                 audit['resolution']='unresolved_exact_match'; connection_audit.append(audit); continue
             p=preferred[0]
@@ -275,7 +296,8 @@ def main():
         eid='interconnector:'+rid
         graph.add_edge(*ends,key=eid,id=eid,name=clean(r['name']),edge_type='hvdc_interconnector',status=status,
             nominal_capacity_mw=number(r['nominal_capacity_mw']),representation='aggregate_grid_to_grid_corridor',
-            evidence='operator_or_regulator_endpoints_plus_NESO',length_km=None,voltage_kv=None,
+            evidence='operator_or_regulator_endpoints_plus_NESO' if registered else 'operator_or_regulator_endpoints',
+            length_km=None,voltage_kv=None,
             source_url=clean(r['source_url']),source_date=clean(r['source_date']),notes=clean(r['notes']),
             neso_connection_site=row['neso_connection_site'],neso_import_current_mw=row['neso_import_current_mw'],
             neso_export_current_mw=row['neso_export_current_mw'],register_source_sha256=row['register_source_sha256'])
@@ -312,26 +334,45 @@ def main():
             'Corridor straight lines are connectivity illustrations, not cable routes',
             'Plant inventory overlaps between DUKES/REPD; do not sum; exact name matches require review',
             'NI inventory retained separately; no NI network; no power-flow, economic development or reliability claims'])
-    write_json(exports/'summary.json',report)
     # Leaflet map: no coordinates invented; line rendering explicitly schematic.
     m=folium.Map(location=[54,-2],zoom_start=5,tiles='OpenStreetMap',prefer_canvas=True)
     layers={k:folium.FeatureGroup(name=label,show=show).add_to(m) for k,label,show in [
-        ('ac_line','Линии GB: модель Cardiff',True),('transformer','Трансформаторы: разрешённые узлы модели',False),
-        ('plant_connection','Станции с подтверждённой точкой подключения NESO',True),
-        ('hvdc_interconnector','Действующие интерконнекторы',True),('construction','Строится: вне активного графа',False)]}
-    colours={'ac_line':'#54748b','transformer':'#8b5cf6','plant_connection':'#16a34a','hvdc_interconnector':'#e56a13','construction':'#a21caf'}
+        ('ac_line','Линии GB: модель Cardiff',True),('transformer','Трансформаторы: места подключения',False),
+        ('plant_connection','Реестровые сопоставления станций NESO',True),
+        ('hvdc_interconnector','Действующие интерконнекторы с координатами',True)]}
+    colours={'ac_line':'#54748b','transformer':'#8b5cf6','plant_connection':'#16a34a','hvdc_interconnector':'#e56a13'}
+    map_edges = defaultdict(Counter)
+    transformers_at = Counter()
     for u,v,d in graph.edges(data=True):
         a,b=graph.nodes[u],graph.nodes[v]
-        if any(n.get('latitude') is None or n.get('longitude') is None for n in [a,b]): continue
-        layer='construction' if d['status']=='under_construction' else d['edge_type']
-        folium.PolyLine([(a['latitude'],a['longitude']),(b['latitude'],b['longitude'])],color=colours[layer],
+        layer = d['edge_type']
+        if d['status'] == 'under_construction':
+            map_edges[layer]['construction_in_schematic'] += 1
+            continue
+        if any(n.get('latitude') is None or n.get('longitude') is None for n in [a,b]):
+            map_edges[layer]['missing_coordinates'] += 1
+            continue
+        points = [(n['latitude'], n['longitude']) for n in (a, b)]
+        if points[0] == points[1]:
+            map_edges[layer]['coincident_endpoints'] += 1
+            if layer == 'transformer':
+                transformers_at[points[0]] += 1
+            continue
+        map_edges[layer]['polylines'] += 1
+        folium.PolyLine(points,color=colours[layer],
             weight=3 if d['edge_type']=='hvdc_interconnector' else 1,opacity=.7,
-            tooltip=html.escape(d['name']+' | '+d['edge_type']+' | '+d['status'])).add_to(layers[layer])
+            tooltip=tooltip_text(d['name']+' | '+d['edge_type']+' | '+d['status'])).add_to(layers[layer])
+    for location, count in transformers_at.items():
+        folium.CircleMarker(location, radius=4, color=colours['transformer'],
+                            tooltip=f'Трансформаторы в модели: {count}').add_to(layers['transformer'])
+    report['map_edges'] = {name: dict(counts) for name, counts in map_edges.items()}
+    report['map_transformer_marker_sites'] = len(transformers_at)
+    write_json(exports/'summary.json',report)
     buses=folium.FeatureGroup(name='Узлы модели и терминалы',show=False).add_to(m)
     for _,n in graph.nodes(data=True):
         if n.get('latitude') is None or n.get('longitude') is None: continue
         folium.CircleMarker([n['latitude'],n['longitude']],radius=3,color='#16a34a' if n['node_type']=='power_plant' else '#1d4ed8',
-            tooltip=html.escape(n['name']+' | '+n['node_type']),fill=True).add_to(buses)
+            tooltip=tooltip_text(n['name']+' | '+n['node_type']),fill=True).add_to(buses)
     folium.LayerControl(collapsed=False).add_to(m)
     attribution = ('<a href="https://doi.org/10.17035/cardiff.28152161.v1">Morteza Shafiekhani, Cardiff University, 2025</a> '
                    '(<a href="https://creativecommons.org/licenses/by/4.0/">CC BY 4.0</a>, адаптация).<br>'

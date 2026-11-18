@@ -3,3 +3,4 @@ openpyxl==3.1.5
 networkx==3.6.1
 folium==0.20.0
 pyproj==3.7.2
+tzdata
