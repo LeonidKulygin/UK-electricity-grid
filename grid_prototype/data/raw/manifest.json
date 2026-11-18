@@ -1,0 +1,57 @@
+{
+  "cardiff": {
+    "file": "cardiff.xlsx",
+    "url": "https://ndownloader.figshare.com/files/52195694",
+    "source_page": "https://research-data.cardiff.ac.uk/articles/dataset/GB_Transmission_Network_Data/28152161",
+    "licence": "CC BY 4.0",
+    "source_date": "2025-02-14",
+    "retrieved_utc": "2026-11-02T22:09:22.152449+00:00",
+    "sha256": "2d0e77178f50927c90387ccd1de61e8a218e0987af195f97a1a566dfb9457776",
+    "bytes": 171127,
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  },
+  "dukes": {
+    "file": "dukes.xlsx",
+    "url": "https://assets.publishing.service.gov.uk/media/6a6a365b0ddb7e4831c629f3/DUKES_5.11.xlsx",
+    "source_page": "https://www.gov.uk/government/statistics/electricity-chapter-5-digest-of-united-kingdom-energy-statistics-dukes",
+    "licence": "OGL v3.0 except third-party rights",
+    "source_date": "2026-05",
+    "retrieved_utc": "2026-11-02T22:09:23.174368+00:00",
+    "sha256": "760286f4cb3168f04a5ee1b581dbfcb35e1d65a5ea0151bb2dd4dc12dca2c72a",
+    "bytes": 1247443,
+    "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+  },
+  "repd": {
+    "file": "repd.csv",
+    "url": "https://assets.publishing.service.gov.uk/media/6a6cbdc00c36759b5ccaa305/REPD_Publication_Q2_2026.csv",
+    "source_page": "https://www.gov.uk/government/publications/renewable-energy-planning-database-quarterly-extract",
+    "licence": "OGL v3.0 except third-party rights",
+    "source_date": "2026-07",
+    "retrieved_utc": "2026-11-02T22:09:24.129513+00:00",
+    "sha256": "84c1b5f958a934d8b4b86ec88f50bdcf43830ded7ff2efc27bffca0c98695035",
+    "bytes": 5087389,
+    "content_type": "text/csv"
+  },
+  "interconnector-register": {
+    "file": "neso_interconnectors.csv",
+    "url": "https://api.neso.energy/dataset/a7cca714-9dbb-42b1-99c8-4bc7211605a8/resource/64f7908f-f787-4977-93e1-5342a5f1357f/download/interconnector-register-30-october-2026.csv",
+    "source_page": "https://www.neso.energy/data-portal/interconnector-register",
+    "licence": "NESO Open Data Licence",
+    "source_date": "2026-10-30T16:50:46.860922",
+    "retrieved_utc": "2026-11-02T22:09:26.331743+00:00",
+    "sha256": "a81b712682fc31a823b1a8af608bd9e70f99abd781a1c9e62307c5a4014890c7",
+    "bytes": 5704,
+    "content_type": "application/octet-stream"
+  },
+  "transmission-entry-capacity-tec-register": {
+    "file": "neso_tec.csv",
+    "url": "https://api.neso.energy/dataset/cbd45e54-e6e2-4a38-99f1-8de6fd96d7c1/resource/17becbab-e3e8-473f-b303-3806f43a6a10/download/tec-register-30-october-2026.csv",
+    "source_page": "https://www.neso.energy/data-portal/transmission-entry-capacity-tec-register",
+    "licence": "NESO Open Data Licence",
+    "source_date": "2026-10-30T16:50:28.553891",
+    "retrieved_utc": "2026-11-02T22:09:28.453959+00:00",
+    "sha256": "d7756178fd50115489c2cd5b60f7e396a0de73d198e24562961191dbaabfcecd",
+    "bytes": 445355,
+    "content_type": "application/octet-stream"
+  }
+}

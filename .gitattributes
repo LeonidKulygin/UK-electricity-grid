@@ -1,0 +1,3 @@
+grid_prototype/data/raw/*.csv -text whitespace=cr-at-eol
+grid_prototype/data/raw/*.xlsx binary
+grid_prototype/exports/*.html text eol=lf linguist-generated=true
